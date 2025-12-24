@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rice Game: Collector Edition</title>
+    <style>
+        :root {
+            --primary: #673ab7;
+            --success: #4caf50;
+            --danger: #f44336;
+            --bg: #f0f2f5;
+        }
+        body { 
+            margin: 0; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg); 
+            color: #333;
+        }
+        nav { 
+            background: #222; 
+            padding: 15px; 
+            display: flex; 
+            justify-content: space-around; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100;
+        }
+        nav button { 
+            color: white; 
+            background: none; 
+            border: none; 
+            font-weight: bold; 
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        .page { padding: 20px; max-width: 500px; margin: 0 auto; display: none; text-align: center; }
+        .active { display: block; }
+        
+        .card { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            margin-bottom: 20px; 
+        }
+        .big-score { font-size: 4rem; font-weight: bold; margin: 10px 0; }
+        .btn { 
+            padding: 15px; 
+            border: none; 
+            border-radius: 10px; 
+            color: white; 
+            font-weight: bold; 
+            font-size: 1rem; 
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.7; transform: scale(0.98); }
+        .grid { display: grid; gap: 10px; }
+        .shop-img { width: 100%; border-radius: 10px; margin-bottom: 10px; }
+        .inventory-img { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; border: 2px solid var(--primary); }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <button onclick="showPage('game')">Game</button>
+        <button onclick="showPage('shop')">Shop</button>
+        <button onclick="showPage('profile')">Profile</button>
+    </nav>
+
+    <div id="page-game" class="page active">
+        <div class="card" style="border-left: 5px solid var(--primary);">
+            <small>Global Bank</small><br>
+            <strong id="bank-val" style="font-size: 1.5rem; color: var(--primary);">0</strong> pts
+        </div>
+
+        <div class="big-score" id="session-val">0</div>
+        <div id="status-tag" style="font-weight: bold; margin-bottom: 20px; color: var(--danger);">● PAUSED</div>
+
+        <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <button id="start-btn" class="btn" style="background: var(--success);" onclick="toggleTimer()">START</button>
+            <button class="btn" style="background: #9e9e9e;" onclick="resetSession()">RESET</button>
+            <button class="btn" style="background: var(--primary); grid-column: span 2;" onclick="saveToBank()">SAVE TO BANK 💰</button>
+            
+            <button class="btn" style="background: #ff9800;" onclick="addE(2)">Eat Rice (+2)</button>
+            <button class="btn" style="background: #2196f3;" onclick="addE(1)">Eat Fish (+1)</button>
+            <button class="btn" style="background: #4caf50; grid-column: span 2;" onclick="addE(1)">Eat Vegi (+1)</button>
+        </div>
+    </div>
+
+    <div id="page-shop" class="page">
+        <h2>Point Shop</h2>
+        <p>Your Balance: <strong class="bank-total">0</strong> pts</p>
+        <div id="shop-items" class="grid"></div>
+    </div>
+
+    <div id="page-profile" class="page">
+        <h2>My Profile</h2>
+        <div id="inventory" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
+    </div>
+
+    <script>
+        // --- DATA STATE ---
+        let state = {
+            session: 0,
+            bank: parseInt(localStorage.getItem('bank')) || 0,
+            inventory: JSON.parse(localStorage.getItem('inventory')) || [],
+            isPaused: true
+        };
+
+        const itemsForSale = [
+            { id: 101, name: "Power ranger 5", price: 10000, img: "https://images.bigbadtoystore.com/images/p/full/2021/10/f85bcc1b-43e5-4bef-9a3f-2b32335b7369.jpg" },
+            { id: 102, name: "SMP Alternative Destiny", price: 10000, img: "https://images.bigbadtoystore.com/images/p/full/2023/08/d6cf471a-62f2-4ce7-9194-b2f4441a082a.jpg" },
+            { id: 102, name: "Mighty Morphin Power Rangers Metal Power Thunder Megazord Figure", price: 10000, img: "https://images.bigbadtoystore.com/images/p/full/2021/07/64ab4c55-57cf-4f02-b7a7-59fb9ec0d6a2.jpg" },
+
+        ];
+
+        let drainInterval = null;
+
+        // --- FUNCTIONS ---
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + id).classList.add('active');
+            render();
+        }
+
+        function toggleTimer() {
+            state.isPaused = !state.isPaused;
+            if (!state.isPaused) {
+                drainInterval = setInterval(() => {
+                    if (state.session > 0) {
+                        state.session--;
+                        render();
+                    }
+                }, 15000);
+            } else {
+                clearInterval(drainInterval);
+            }
+            render();
+        }
+
+        function addE(pts) {
+            if (!state.isPaused) {
+                state.session += pts;
+                render();
+            } else {
+                alert("Tap START to begin eating!");
+            }
+        }
+
+        function resetSession() {
+            state.session = 0;
+            render();
+        }
+
+        function saveToBank() {
+            state.bank += state.session;
+            state.session = 0;
+            saveData();
+            render();
+        }
+
+        function buyItem(item) {
+            if (state.bank >= item.price) {
+                state.bank -= item.price;
+                state.inventory.push(item);
+                saveData();
+                render();
+            } else {
+                alert("Not enough points in the bank!");
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('bank', state.bank);
+            localStorage.setItem('inventory', JSON.stringify(state.inventory));
+        }
+
+        function render() {
+            // Stats
+            document.getElementById('bank-val').innerText = state.bank;
+            document.querySelectorAll('.bank-total').forEach(el => el.innerText = state.bank);
+            document.getElementById('session-val').innerText = state.session;
+            
+            // Status
+            const status = document.getElementById('status-tag');
+            status.innerText = state.isPaused ? "● PAUSED" : "● RUNNING (-1 / 15s)";
+            status.style.color = state.isPaused ? "var(--danger)" : "var(--success)";
+            
+            const sBtn = document.getElementById('start-btn');
+            sBtn.innerText = state.isPaused ? "START" : "PAUSE";
+            sBtn.style.background = state.isPaused ? "var(--success)" : "var(--danger)";
+
+            // Shop
+            const shop = document.getElementById('shop-items');
+            shop.innerHTML = '';
+            itemsForSale.forEach(item => {
+                const owned = state.inventory.find(i => i.id === item.id);
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="${item.img}" class="shop-img">
+                    <strong>${item.name}</strong><br>
+                    <small>${item.price} Points</small><br><br>
+                    <button class="btn" style="background: ${owned ? '#ccc' : 'var(--primary)'}; width: 100%; padding: 10px;" 
+                        onclick='buyItem(${JSON.stringify(item)})' ${owned ? 'disabled' : ''}>
+                        ${owned ? 'OWNED' : 'BUY'}
+                    </button>
+                `;
+                shop.appendChild(card);
+            });
+
+            // Inventory
+            const inv = document.getElementById('inventory');
+            inv.innerHTML = state.inventory.length ? '' : '<p>Go to the shop to spend points!</p>';
+            state.inventory.forEach(item => {
+                inv.innerHTML += `<img src="${item.img}" class="inventory-img" title="${item.name}">`;
+            });
+        }
+
+        // Initial Load
+        render();
+    </script>
+</body>
+</html>
