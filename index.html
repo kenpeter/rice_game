@@ -11,6 +11,7 @@
             --danger: #f44336;
             --warning: #ff9800;
             --info: #2196f3;
+            --dino: #4caf50;
             --bg: #f0f2f5;
         }
         body { 
@@ -46,6 +47,8 @@
             border-radius: 15px; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
             margin-bottom: 20px; 
+            position: relative;
+            overflow: hidden;
         }
         .big-score { font-size: 4rem; font-weight: bold; margin: 10px 0; }
         .btn { 
@@ -60,8 +63,20 @@
         }
         .btn:active { opacity: 0.7; transform: scale(0.98); }
         .grid { display: grid; gap: 10px; }
-        .shop-img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; }
+        .shop-img { width: 100%; height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; }
         .inventory-img { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; border: 2px solid var(--primary); }
+        
+        .tag {
+            position: absolute;
+            top: 10px;
+            right: -30px;
+            background: var(--warning);
+            color: white;
+            padding: 5px 40px;
+            transform: rotate(45deg);
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -96,18 +111,17 @@
     </div>
 
     <div id="page-shop" class="page">
-        <h2>Point Shop</h2>
+        <h2>Collector Shop</h2>
         <p>Your Balance: <strong class="bank-total">0</strong> pts</p>
         <div id="shop-items" class="grid"></div>
     </div>
 
     <div id="page-profile" class="page">
-        <h2>My Profile</h2>
+        <h2>My Collection</h2>
         <div id="inventory" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
     </div>
 
     <script>
-        // --- DATA STATE ---
         let state = {
             session: 0,
             bank: parseInt(localStorage.getItem('bank')) || 0,
@@ -115,16 +129,19 @@
             isPaused: true
         };
 
-        // Updated prices to 500
         const itemsForSale = [
-            { id: 101, name: "Power Ranger 5", price: 500, img: "https://images.bigbadtoystore.com/images/p/full/2021/10/f85bcc1b-43e5-4bef-9a3f-2b32335b7369.jpg" },
-            { id: 102, name: "SMP Alternative Destiny", price: 500, img: "https://images.bigbadtoystore.com/images/p/full/2023/08/d6cf471a-62f2-4ce7-9194-b2f4441a082a.jpg" },
-            { id: 103, name: "Thunder Megazord Figure", price: 500, img: "https://images.bigbadtoystore.com/images/p/full/2021/07/64ab4c55-57cf-4f02-b7a7-59fb9ec0d6a2.jpg" },
+            // Dino Series - 50 pts
+            { id: 1, name: "T-Rex Figure", price: 50, img: "https://images.unsplash.com/photo-1559767614-7d40944356d6?q=80&w=400&auto=format&fit=crop", series: "Dino" },
+            { id: 2, name: "Triceratops Figure", price: 50, img: "https://images.unsplash.com/photo-1525833323545-2dcf3760593d?q=80&w=400&auto=format&fit=crop", series: "Dino" },
+            { id: 3, name: "Velociraptor Figure", price: 50, img: "https://images.unsplash.com/photo-1615110158413-577f19cd7823?q=80&w=400&auto=format&fit=crop", series: "Dino" },
+            // Elite Series - 500 pts
+            { id: 101, name: "Power Ranger Mecha", price: 500, img: "https://m.media-amazon.com/images/I/718y9S0-HXL._AC_SL1500_.jpg", series: "Elite" },
+            { id: 102, name: "Destiny Mecha Unit", price: 500, img: "https://m.media-amazon.com/images/I/71k6Fp87VjL._AC_SL1200_.jpg", series: "Elite" },
+            { id: 103, name: "Thunder Megazord", price: 500, img: "https://m.media-amazon.com/images/I/71Y72e3-X5L._AC_SL1500_.jpg", series: "Elite" }
         ];
 
         let drainInterval = null;
 
-        // --- FUNCTIONS ---
         function showPage(id) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById('page-' + id).classList.add('active');
@@ -168,10 +185,8 @@
             render();
         }
 
-        function buyItem(itemJson) {
-            // Passing JSON string to avoid object reference issues in onclick
-            const item = typeof itemJson === 'string' ? JSON.parse(itemJson) : itemJson;
-            
+        function buyItem(id) {
+            const item = itemsForSale.find(i => i.id === id);
             if (state.bank >= item.price) {
                 state.bank -= item.price;
                 state.inventory.push(item);
@@ -188,12 +203,10 @@
         }
 
         function render() {
-            // Stats
             document.getElementById('bank-val').innerText = state.bank;
             document.querySelectorAll('.bank-total').forEach(el => el.innerText = state.bank);
             document.getElementById('session-val').innerText = state.session;
             
-            // Status
             const status = document.getElementById('status-tag');
             status.innerText = state.isPaused ? "● PAUSED" : "● RUNNING (-1 / 15s)";
             status.style.color = state.isPaused ? "var(--danger)" : "var(--success)";
@@ -202,7 +215,6 @@
             sBtn.innerText = state.isPaused ? "START" : "PAUSE";
             sBtn.style.background = state.isPaused ? "var(--success)" : "var(--danger)";
 
-            // Shop
             const shop = document.getElementById('shop-items');
             shop.innerHTML = '';
             itemsForSale.forEach(item => {
@@ -210,20 +222,20 @@
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerHTML = `
-                    <img src="${item.img}" class="shop-img">
+                    <div class="tag" style="background:${item.series === 'Dino' ? 'var(--success)' : 'var(--primary)'}">${item.series}</div>
+                    <img src="${item.img}" class="shop-img" onerror="this.src='https://via.placeholder.com/200?text=Toy+Figure'">
                     <strong>${item.name}</strong><br>
                     <small>${item.price} Points</small><br><br>
                     <button class="btn" style="background: ${isOwned ? '#ccc' : 'var(--primary)'}; width: 100%; padding: 10px;" 
-                        onclick='buyItem(${JSON.stringify(item)})' ${isOwned ? 'disabled' : ''}>
+                        onclick="buyItem(${item.id})" ${isOwned ? 'disabled' : ''}>
                         ${isOwned ? 'OWNED' : 'BUY'}
                     </button>
                 `;
                 shop.appendChild(card);
             });
 
-            // Inventory
             const inv = document.getElementById('inventory');
-            inv.innerHTML = state.inventory.length ? '' : '<p>Go to the shop to spend points!</p>';
+            inv.innerHTML = state.inventory.length ? '' : '<p>Empty collection...</p>';
             state.inventory.forEach(item => {
                 const img = document.createElement('img');
                 img.src = item.img;
@@ -233,7 +245,6 @@
             });
         }
 
-        // Initial Load
         render();
     </script>
 </body>
